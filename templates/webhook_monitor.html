@@ -1,0 +1,206 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Payment Event Monitoring</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6fa;
+      color: #192437;
+    }
+    header {
+      background: #142b24;
+      color: white;
+      padding: 24px 5%;
+    }
+    header h1 { margin: 0 0 8px; }
+    header p { margin: 0; color: #cfddd6; }
+    main { max-width: 1250px; margin: 28px auto; padding: 0 20px; }
+    .top, .filters {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 14px;
+      margin: 22px 0;
+    }
+    .card, .panel {
+      background: white;
+      border: 1px solid #e4e9ef;
+      border-radius: 12px;
+      padding: 18px;
+    }
+    .label { color: #687386; font-size: 13px; }
+    .value { font-size: 27px; font-weight: bold; margin-top: 10px; }
+    .panel { padding: 20px; }
+    .filters { justify-content: flex-start; margin: 18px 0; }
+    input, select, button, .link {
+      padding: 11px 13px;
+      border-radius: 7px;
+      border: 1px solid #d6dde6;
+      font-size: 14px;
+    }
+    button, .link {
+      background: #176b4d;
+      color: white;
+      border: 0;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 1000px; }
+    th, td {
+      text-align: left;
+      padding: 13px 10px;
+      border-bottom: 1px solid #edf0f4;
+      font-size: 13px;
+      vertical-align: top;
+    }
+    th { color: #687386; background: #fafbfc; }
+    td.id { max-width: 190px; overflow-wrap: anywhere; }
+    .badge {
+      display: inline-block;
+      border-radius: 20px;
+      padding: 5px 8px;
+      background: #e7edf7;
+      color: #344b71;
+      text-transform: capitalize;
+    }
+    .processed { background: #ddf5e5; color: #176b3a; }
+    .rejected, .failed { background: #ffe4e4; color: #a51f1f; }
+    .ignored { background: #fff0d4; color: #805500; }
+    .muted { color: #687386; font-size: 13px; }
+    @media (max-width: 950px) {
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 450px) {
+      .cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Payment Event Monitoring</h1>
+  <p>EV Battery Swapping Management System · Webhook Activity</p>
+</header>
+
+<main>
+  <div class="top">
+    <div>
+      <h2>Webhook Overview</h2>
+      <p class="muted">
+        Signature validation, event processing and delivery history
+      </p>
+    </div>
+    <a class="link" href="/dashboard">Payment Dashboard</a>
+  </div>
+
+  <section class="cards">
+    <div class="card">
+      <div class="label">Total deliveries</div>
+      <div class="value">{{ stats["total"] }}</div>
+    </div>
+    <div class="card">
+      <div class="label">Verified signatures</div>
+      <div class="value">{{ stats["verified"] }}</div>
+    </div>
+    <div class="card">
+      <div class="label">Rejected signatures</div>
+      <div class="value">{{ stats["rejected"] }}</div>
+    </div>
+    <div class="card">
+      <div class="label">Processed events</div>
+      <div class="value">{{ stats["processed"] }}</div>
+    </div>
+    <div class="card">
+      <div class="label">Processing failures</div>
+      <div class="value">{{ stats["failed"] }}</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h3>Webhook Event History</h3>
+
+    <form method="get" action="/webhook-monitor" class="filters">
+      <input
+        name="q"
+        type="search"
+        placeholder="Search event, payment or order ID"
+        value="{{ search }}"
+      >
+
+      <select name="status">
+        <option value="">All outcomes</option>
+        {% for outcome in ["processed", "rejected", "failed", "ignored"] %}
+        <option value="{{ outcome }}"
+          {% if status_filter == outcome %}selected{% endif %}>
+          {{ outcome|capitalize }}
+        </option>
+        {% endfor %}
+      </select>
+
+      <button type="submit">Filter</button>
+      <a class="link" href="/webhook-monitor">Reset</a>
+    </form>
+
+    <p class="muted">Latest 200 matching deliveries, newest first.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Received at</th>
+            <th>Event ID</th>
+            <th>Event type</th>
+            <th>Signature</th>
+            <th>Outcome</th>
+            <th>Payment / Order</th>
+            <th>Processing details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for event in events %}
+          <tr>
+            <td>{{ event["received_at"] }}</td>
+            <td class="id">{{ event["event_id"] or "—" }}</td>
+            <td>{{ event["event_type"] or "unknown" }}</td>
+            <td>
+              {% if event["signature_valid"] %}
+                <span class="badge processed">Verified</span>
+              {% else %}
+                <span class="badge rejected">Rejected</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge {{ event['processing_status'] }}">
+                {{ event["processing_status"] }}
+              </span>
+            </td>
+            <td class="id">
+              Payment: {{ event["payment_id"] or "—" }}<br>
+              Order: {{ event["order_id"] or "—" }}
+            </td>
+            <td>{{ event["message"] or "—" }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7">No webhook deliveries recorded yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<a href="/battery-inventory">Battery Inventory</a>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EV Swap Admin Dashboard</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f4f6fa;
+      color: #172033;
+      font-family: Arial, sans-serif;
+    }
+    header {
+      background: #142b24;
+      color: white;
+      padding: 22px 5%;
+    }
+    header h1 { margin: 0 0 6px; font-size: 24px; }
+    header p { margin: 0; color: #c8d8d0; }
+    main { max-width: 1200px; margin: 28px auto; padding: 0 20px; }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 22px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .card, .table-box {
+      background: white;
+      border: 1px solid #e5e9ef;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .label { color: #687386; font-size: 14px; }
+    .value { font-size: 28px; font-weight: bold; margin-top: 12px; }
+    .filters {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 18px 0;
+    }
+    input, select, button, .link {
+      padding: 11px 13px;
+      border: 1px solid #d7dce5;
+      border-radius: 7px;
+      font-size: 14px;
+    }
+    input { min-width: 200px; }
+    button, .link {
+      background: #176b4d;
+      color: white;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; min-width: 800px; }
+    th, td {
+      padding: 14px 12px;
+      text-align: left;
+      border-bottom: 1px solid #edf0f4;
+      font-size: 13px;
+    }
+    th { color: #687386; background: #fafbfc; }
+    td.id { max-width: 210px; overflow-wrap: anywhere; }
+    .badge {
+      display: inline-block;
+      padding: 5px 9px;
+      border-radius: 20px;
+      background: #fff2d6;
+      color: #805500;
+      text-transform: capitalize;
+    }
+    .badge.paid { background: #dff6e8; color: #176b3a; }
+    .badge.failed { background: #ffe5e5; color: #a51f1f; }
+    .muted { color: #687386; font-size: 13px; }
+    @media (max-width: 850px) {
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 450px) {
+      .cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>EV Swap Control Center</h1>
+  <p>Payment monitoring · EV-SWAP-001 · Test environment</p>
+</header>
+
+<main>
+  <div class="top">
+    <div>
+      <h2>Payment & Swap Dashboard</h2>
+      <p class="muted">Transaction records from your local SQLite database</p>
+    </div>
+    <a class="link" href="/">Open swap page</a>
+  </div>
+
+  <section class="cards">
+    <div class="card">
+      <div class="label">Total swaps</div>
+      <div class="value">{{ stats["total_swaps"] }}</div>
+    </div>
+    <div class="card">
+      <div class="label">Paid swaps</div>
+      <div class="value">{{ stats["paid_swaps"] }}</div>
+    </div>
+    <div class="card">
+      <div class="label">Pending swaps</div>
+      <div class="value">{{ stats["pending_swaps"] }}</div>
+    </div>
+    <div class="card">
+      <div class="label">Captured amount</div>
+      <div class="value">
+        ₹{{ "%.2f"|format(stats["captured_paise"] / 100) }}
+      </div>
+    </div>
+  </section>
+
+  <section class="table-box">
+    <h3>Swap transactions</h3>
+
+    <form class="filters" method="get" action="/dashboard">
+      <input
+        type="search"
+        name="q"
+        placeholder="Search swap, order or payment ID"
+        value="{{ search }}"
+      >
+
+      <select name="status">
+        <option value="">All statuses</option>
+        <option value="paid"
+          {% if status_filter == "paid" %}selected{% endif %}>
+          Paid
+        </option>
+        <option value="pending"
+          {% if status_filter == "pending" %}selected{% endif %}>
+          Pending
+        </option>
+        <option value="failed"
+          {% if status_filter == "failed" %}selected{% endif %}>
+          Failed
+        </option>
+      </select>
+
+      <button type="submit">Apply filters</button>
+      <a class="link" href="/dashboard">Reset</a>
+    </form>
+
+    <p class="muted">Showing up to 200 matching records.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Swap ID</th>
+            <th>Order ID</th>
+            <th>Payment ID</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th>Created at</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for swap in swaps %}
+          <tr>
+            <td class="id">{{ swap["swap_id"] }}</td>
+            <td class="id">{{ swap["order_id"] }}</td>
+            <td class="id">
+              {{ swap["payment_id"] or "—" }}
+            </td>
+            <td>₹{{ "%.2f"|format(swap["amount"] / 100) }}</td>
+            <td>
+              <span class="badge {{ swap['status'] }}">
+                {{ swap["status"] }}
+              </span>
+            </td>
+            <td>{{ swap["created_at"] }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6">
+              No transactions found. Complete a test swap first.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <p class="muted">
+    Educational prototype · Razorpay Test Mode · No physical battery control
+  </p>
+</main>
+</body>
+</html>

@@ -1,0 +1,152 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EV Swap Demo</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 620px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f7fa;
+      color: #202733;
+    }
+    .panel {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px #0001;
+    }
+    button {
+      padding: 12px 18px;
+      background: #146c43;
+      color: white;
+      border: 0;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:disabled { opacity: .6; cursor: wait; }
+    #status { margin-top: 20px; white-space: pre-wrap; }
+    .note { color: #555; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h1>EV Battery Swap</h1>
+    <p>Demo station: EV-SWAP-001</p>
+    <p><strong>Test swap price: ₹50</strong></p>
+    <p class="note">
+      Test Mode only. 
+    </p>
+
+    <button id="payButton">Pay ₹50 and simulate swap</button>
+    <div id="status">Ready for a test swap.</div>
+  </div>
+
+  <script>
+    const button = document.getElementById("payButton");
+    const statusBox = document.getElementById("status");
+
+    function showStatus(message) {
+      statusBox.textContent = message;
+    }
+
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+
+      try {
+        showStatus("Creating order...");
+
+        const orderResponse = await fetch("/api/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({})
+        });
+
+        const order = await orderResponse.json();
+
+        if (!orderResponse.ok) {
+          throw new Error(order.error || "Could not create order");
+        }
+
+        const checkout = new Razorpay({
+          key: order.key_id,
+          amount: order.amount,
+          currency: order.currency,
+          name: "EV Swap Demo",
+          description: "Simulated battery swap",
+          order_id: order.order_id,
+
+          handler: async function (response) {
+            showStatus("Verifying payment with the server...");
+
+            try {
+              const verifyResponse = await fetch(
+                "/api/verify-payment",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json"
+                  },
+                  body: JSON.stringify(response)
+                }
+              );
+
+              const result = await verifyResponse.json();
+
+              if (!verifyResponse.ok) {
+                showStatus(
+                  "Payment needs confirmation: " +
+                  (result.error || result.message || "Please retry")
+                );
+                return;
+              }
+
+              showStatus(
+                "Payment verified!\n" +
+                "Swap ID: " + result.swap_id + "\n" +
+                "Status: " + result.status
+              );
+            } catch (error) {
+              showStatus(
+                "Could not confirm payment. Check the server and retry."
+              );
+            } finally {
+              button.disabled = false;
+            }
+          },
+
+          modal: {
+            ondismiss: function () {
+              showStatus(
+                "Checkout closed. Check payment status before retrying."
+              );
+              button.disabled = false;
+            }
+          },
+
+          theme: { color: "#146c43" }
+        });
+
+        checkout.on("payment.failed", function (response) {
+          showStatus(
+            "Test payment failed: " +
+            (response.error.description || "Try again")
+          );
+          button.disabled = false;
+        });
+
+        checkout.open();
+      } catch (error) {
+        showStatus("Error: " + error.message);
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

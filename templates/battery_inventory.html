@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Battery Inventory</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #f3f6fa; color: #12233f; }
+    main { max-width: 1150px; margin: 32px auto; padding: 0 20px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    a, button { background:#176b50; color:white; border:0; border-radius:7px; padding:11px 15px; text-decoration:none; cursor:pointer; }
+    .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:15px; margin:24px 0; }
+    .card, .panel { background:white; border:1px solid #dce4ed; border-radius:12px; padding:20px; }
+    .label { color:#63748b; font-size:14px; }
+    .number { font-size:28px; font-weight:bold; margin-top:10px; }
+    .panel { margin-bottom:20px; overflow-x:auto; }
+    form { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    input, select { padding:11px; border:1px solid #ccd6e2; border-radius:7px; background:white; }
+    table { width:100%; border-collapse:collapse; min-width:650px; margin-top:16px; }
+    th, td { text-align:left; padding:13px 10px; border-bottom:1px solid #e5ebf1; }
+    th { color:#60718a; font-size:13px; }
+    .pill { padding:5px 9px; border-radius:20px; background:#e8f5ee; color:#176b50; font-size:12px; }
+    .error { color:#b42318; margin-top:12px; }
+    @media(max-width:600px) { main { margin:18px auto; } .card,.panel { padding:15px; } }
+  </style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div>
+      <h1>Battery Inventory</h1>
+      <p class="label">Station STATION-01 · Battery and slot status</p>
+    </div>
+    <a href="/dashboard">Back to payment dashboard</a>
+  </div>
+
+  <section class="cards">
+    <div class="card"><div class="label">Total slots</div><div class="number">{{ summary.total_slots }}</div></div>
+    <div class="card"><div class="label">Empty slots</div><div class="number">{{ summary.empty_slots }}</div></div>
+    <div class="card"><div class="label">Charged batteries</div><div class="number">{{ summary.charged }}</div></div>
+    <div class="card"><div class="label">Charging in progress</div><div class="number">{{ summary.charging }}</div></div>
+  </section>
+
+  <section class="panel">
+    <h2>Add battery</h2>
+    <form id="add-form">
+      <input name="battery_id" placeholder="Battery ID (e.g. BAT-001)" required maxlength="50">
+      <input name="charge_percent" type="number" placeholder="Charge %" min="0" max="100" required>
+      <input name="slot_no" type="number" placeholder="Slot number" min="1" max="{{ summary.total_slots }}">
+      <select name="status">
+        <option value="charged">Charged</option>
+        <option value="charging" selected>Charging</option>
+        <option value="in_use">In use</option>
+        <option value="maintenance">Maintenance</option>
+      </select>
+      <button type="submit">Add battery</button>
+    </form>
+    <div id="message" class="error" role="status"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Battery records</h2>
+    <table>
+      <thead>
+        <tr><th>Battery ID</th><th>Charge</th><th>Slot No.</th><th>Status</th><th>Last updated</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+      {% for b in batteries %}
+        <tr>
+          <td>{{ b.battery_id }}</td>
+          <td>{{ b.charge_percent }}%</td>
+          <td>{{ b.slot_no if b.slot_no is not none else "—" }}</td>
+          <td><span class="pill">{{ b.status.replace('_', ' ')|title }}</span></td>
+          <td>{{ b.updated_at }}</td>
+          <td>
+            <button type="button"
+              onclick="editBattery({{ b.battery_id|tojson }}, {{ b.charge_percent|tojson }}, {{ b.slot_no|tojson }}, {{ b.status|tojson }})">
+              Update
+            </button>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6">No batteries added yet. Use the form above to add your first battery.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+const form = document.getElementById("add-form");
+const message = document.getElementById("message");
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  message.textContent = "";
+
+  const fields = new FormData(form);
+  const slotText = fields.get("slot_no");
+
+  const payload = {
+    battery_id: fields.get("battery_id").trim(),
+    charge_percent: Number(fields.get("charge_percent")),
+    slot_no: slotText ? Number(slotText) : null,
+    status: fields.get("status")
+  };
+
+  try {
+    const response = await fetch("/api/batteries", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+
+    if (!response.ok) throw new Error(result.error || "Could not add battery");
+
+    window.location.reload();
+  } catch (error) {
+    message.textContent = error.message;
+  }
+});
+
+async function editBattery(id, oldCharge, oldSlot, oldStatus) {
+  const chargeText = prompt("Enter charge percentage (0–100):", oldCharge);
+  if (chargeText === null) return;
+
+  const slotText = prompt("Enter slot number, or leave blank for no slot:", oldSlot ?? "");
+  if (slotText === null) return;
+
+  const status = prompt("Enter status: charged, charging, in_use, maintenance", oldStatus);
+  if (status === null) return;
+
+  const payload = {
+    charge_percent: Number(chargeText),
+    slot_no: slotText.trim() === "" ? null : Number(slotText),
+    status: status.trim().toLowerCase()
+  };
+
+  try {
+    const response = await fetch("/api/batteries/" + encodeURIComponent(id), {
+      method: "PATCH",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+
+    if (!response.ok) throw new Error(result.error || "Could not update battery");
+
+    window.location.reload();
+  } catch (error) {
+    message.textContent = error.message;
+  }
+}
+</script>
+</body>
+</html>
