@@ -34,8 +34,12 @@ The goal is to connect the customer payment experience with the operational need
 - Calculates empty slots, charged batteries, and batteries currently charging from database records.
 - Prevents duplicate battery IDs and occupied slot assignments.
   
-### 4. Refund Management: Request full refunds for eligible paid transactions and view stored refund information.
+### 4. Refund Management
 
+- Request a full refund for an eligible paid transaction through the Razorpay Refunds API.
+- Only transactions already marked as paid can be refunded, and a transaction can't be refunded twice.
+- Stores the refund ID, status, and amount in SQLite.
+- Refund information is visible alongside the transaction details.
 
 ## Screenshots
 <img width="679" height="557" alt="image" src="https://github.com/user-attachments/assets/1bd20ec9-4da1-435d-ab85-d6e8fee82820" />
@@ -195,6 +199,14 @@ The SQLite tables are initialized by the application when its database initializ
 7. The backend fetches the payment details and validates the order ID, amount, currency, and captured status.
 8. The swap record is marked paid only after the required checks pass.
 9. The admin dashboard displays the updated transaction information.
+
+## How the Refund Flow Works
+
+1. An admin selects a paid transaction to refund.
+2. The backend checks that the swap is marked paid and hasn't already been refunded.
+3. The backend calls the Razorpay Refunds API using the stored payment ID.
+4. The refund ID, status, and amount are saved in SQLite.
+5. The dashboard shows the refund status for that transaction.
 
 ## API Endpoints
 
