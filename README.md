@@ -1,6 +1,6 @@
 # EV Battery Swapping & Payment Management Platform
 
-A web-based EV battery swapping management system built with **Python, Flask, SQLite, and Razorpay Checkout**. The project combines a battery swapping payment flow with an administrative dashboard for monitoring transactions and managing battery inventory.
+A web based EV battery swapping management system built with **Python, Flask, SQLite, and Razorpay Checkout**. The project combines a battery swapping payment flow with an administrative dashboard for monitoring transactions and managing battery inventory.
 
 ## Project Overview
 
@@ -33,11 +33,14 @@ The goal is to connect the customer payment experience with the operational need
 - Displays the total station slot count.
 - Calculates empty slots, charged batteries, and batteries currently charging from database records.
 - Prevents duplicate battery IDs and occupied slot assignments.
+  
+### 4. Refund Management: Request full refunds for eligible paid transactions and view stored refund information.
 
 
 ## Screenshots
 <img width="679" height="557" alt="image" src="https://github.com/user-attachments/assets/1bd20ec9-4da1-435d-ab85-d6e8fee82820" />
 <img width="626" height="356" alt="image" src="https://github.com/user-attachments/assets/2ff80e26-ab35-4308-83c8-b7abef5a1457" />
+<img width="918" height="345" alt="image" src="https://github.com/user-attachments/assets/30c30911-ed60-49d7-a312-662b12c4d163" />
 
 
 ### Payment Dashboard
