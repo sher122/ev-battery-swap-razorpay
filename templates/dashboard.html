@@ -1,26 +1,36 @@
-<a href="/battery-inventory">Battery Inventory</a>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>EV Swap Admin Dashboard</title>
+
   <style>
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       background: #f4f6fa;
       color: #172033;
       font-family: Arial, sans-serif;
     }
+
     header {
       background: #142b24;
       color: white;
       padding: 22px 5%;
     }
+
     header h1 { margin: 0 0 6px; font-size: 24px; }
     header p { margin: 0; color: #c8d8d0; }
-    main { max-width: 1200px; margin: 28px auto; padding: 0 20px; }
+
+    main {
+      max-width: 1400px;
+      margin: 28px auto;
+      padding: 0 20px;
+    }
+
     .top {
       display: flex;
       justify-content: space-between;
@@ -29,50 +39,82 @@
       flex-wrap: wrap;
       margin-bottom: 22px;
     }
+
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
     .cards {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 16px;
       margin-bottom: 24px;
     }
+
     .card, .table-box {
       background: white;
       border: 1px solid #e5e9ef;
       border-radius: 12px;
       padding: 20px;
     }
+
     .label { color: #687386; font-size: 14px; }
     .value { font-size: 28px; font-weight: bold; margin-top: 12px; }
+
     .filters {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
       margin: 18px 0;
     }
+
     input, select, button, .link {
       padding: 11px 13px;
       border: 1px solid #d7dce5;
       border-radius: 7px;
       font-size: 14px;
     }
+
     input { min-width: 200px; }
+
     button, .link {
       background: #176b4d;
       color: white;
       border: none;
       cursor: pointer;
       text-decoration: none;
+      display: inline-block;
     }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     .table-wrap { overflow-x: auto; }
-    table { border-collapse: collapse; width: 100%; min-width: 800px; }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 1150px;
+    }
+
     th, td {
       padding: 14px 12px;
       text-align: left;
       border-bottom: 1px solid #edf0f4;
       font-size: 13px;
     }
+
     th { color: #687386; background: #fafbfc; }
-    td.id { max-width: 210px; overflow-wrap: anywhere; }
+
+    td.id {
+      max-width: 210px;
+      overflow-wrap: anywhere;
+    }
+
     .badge {
       display: inline-block;
       padding: 5px 9px;
@@ -80,31 +122,64 @@
       background: #fff2d6;
       color: #805500;
       text-transform: capitalize;
+      white-space: nowrap;
     }
-    .badge.paid { background: #dff6e8; color: #176b3a; }
-    .badge.failed { background: #ffe5e5; color: #a51f1f; }
-    .muted { color: #687386; font-size: 13px; }
+
+    .badge.paid, .badge.processed {
+      background: #dff6e8;
+      color: #176b3a;
+    }
+
+    .badge.failed, .badge.rejected {
+      background: #ffe5e5;
+      color: #a51f1f;
+    }
+
+    .badge.pending, .badge.not_requested {
+      background: #fff2d6;
+      color: #805500;
+    }
+
+    .muted {
+      color: #687386;
+      font-size: 13px;
+    }
+
+    .refund-button { white-space: nowrap; }
+
+    #refund-message {
+      margin: 12px 0;
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
     @media (max-width: 850px) {
       .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
+
     @media (max-width: 450px) {
       .cards { grid-template-columns: 1fr; }
     }
   </style>
 </head>
+
 <body>
 <header>
   <h1>EV Swap Control Center</h1>
-  <p>Payment monitoring · EV-SWAP-001 · Test environment</p>
+  <p>Payment monitoring and battery inventory</p>
 </header>
 
 <main>
   <div class="top">
     <div>
-      <h2>Payment & Swap Dashboard</h2>
+      <h2>Payment &amp; Swap Dashboard</h2>
       <p class="muted">Transaction records from your local SQLite database</p>
     </div>
-    <a class="link" href="/">Open swap page</a>
+
+    <div class="nav-links">
+      <a class="link" href="/">Open swap page</a>
+      <a class="link" href="/battery-inventory">Battery Inventory</a>
+    </div>
   </div>
 
   <section class="cards">
@@ -112,14 +187,17 @@
       <div class="label">Total swaps</div>
       <div class="value">{{ stats["total_swaps"] }}</div>
     </div>
+
     <div class="card">
       <div class="label">Paid swaps</div>
       <div class="value">{{ stats["paid_swaps"] }}</div>
     </div>
+
     <div class="card">
       <div class="label">Pending swaps</div>
       <div class="value">{{ stats["pending_swaps"] }}</div>
     </div>
+
     <div class="card">
       <div class="label">Captured amount</div>
       <div class="value">
@@ -159,6 +237,7 @@
       <a class="link" href="/dashboard">Reset</a>
     </form>
 
+    <p id="refund-message" role="status" aria-live="polite"></p>
     <p class="muted">Showing up to 200 matching records.</p>
 
     <div class="table-wrap">
@@ -169,31 +248,74 @@
             <th>Order ID</th>
             <th>Payment ID</th>
             <th>Amount</th>
-            <th>Status</th>
+            <th>Payment Status</th>
+            <th>Refund Status</th>
+            <th>Refund Amount</th>
             <th>Created at</th>
+            <th>Action</th>
           </tr>
         </thead>
+
         <tbody>
           {% for swap in swaps %}
           <tr>
             <td class="id">{{ swap["swap_id"] }}</td>
             <td class="id">{{ swap["order_id"] }}</td>
-            <td class="id">
-              {{ swap["payment_id"] or "—" }}
-            </td>
+            <td class="id">{{ swap["payment_id"] or "—" }}</td>
+
             <td>₹{{ "%.2f"|format(swap["amount"] / 100) }}</td>
+
             <td>
               <span class="badge {{ swap['status'] }}">
                 {{ swap["status"] }}
               </span>
             </td>
+
+            {% set refund_status = swap["refund_status"] or "not_requested" %}
+
+            <td>
+              <span class="badge {{ refund_status }}">
+                {{ refund_status.replace("_", " ") }}
+              </span>
+            </td>
+
+            <td>
+              {% if swap["refund_amount"] %}
+                ₹{{ "%.2f"|format(swap["refund_amount"] / 100) }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+
             <td>{{ swap["created_at"] }}</td>
+
+            <td>
+              {% if swap["status"] == "paid"
+                    and refund_status == "not_requested"
+                    and not swap["refund_id"] %}
+
+                <!-- Corrected refund button -->
+                <button
+                  type="button"
+                  class="refund-button"
+                  data-swap-id="{{ swap['swap_id'] }}"
+                  onclick="requestRefund(this.dataset.swapId, this)">
+                  Request Refund
+                </button>
+
+              {% elif swap["refund_id"] %}
+                <span class="muted">
+                  Refund ID: {{ swap["refund_id"] }}
+                </span>
+              {% else %}
+                <span class="muted">No action available</span>
+              {% endif %}
+            </td>
           </tr>
+
           {% else %}
           <tr>
-            <td colspan="6">
-              No transactions found. Complete a test swap first.
-            </td>
+            <td colspan="9">No transactions found.</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -202,8 +324,81 @@
   </section>
 
   <p class="muted">
-    Educational prototype · Razorpay Test Mode · No physical battery control
+    Refund status reflects the latest status stored in the database.
   </p>
 </main>
+
+<script>
+"use strict";
+
+async function requestRefund(swapId, button) {
+  const message = document.getElementById("refund-message");
+
+  if (!swapId || !button || !message) {
+    console.error("Refund button is missing required data.");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Request a full refund for this payment? " +
+    "This action may reverse a real payment."
+  );
+
+  if (!confirmed) return;
+
+  button.disabled = true;
+  button.textContent = "Submitting…";
+  message.textContent = "Sending refund request…";
+
+  try {
+    const response = await fetch(
+      "/api/refund/" + encodeURIComponent(swapId),
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({})
+      }
+    );
+
+    const responseText = await response.text();
+    let result;
+
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseError) {
+      throw new Error(
+        "The server returned a non-JSON response (HTTP " +
+        response.status +
+        "). Check the Flask terminal."
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        result.error ||
+        "Refund request failed (HTTP " + response.status + ")."
+      );
+    }
+
+    message.textContent =
+      "Refund request submitted. Status: " +
+      (result.refund_status || "pending") +
+      ". Refreshing dashboard…";
+
+    window.setTimeout(function () {
+      window.location.reload();
+    }, 2000);
+
+  } catch (error) {
+    console.error("Refund request error:", error);
+    message.textContent = "Error: " + error.message;
+    button.disabled = false;
+    button.textContent = "Request Refund";
+  }
+}
+</script>
 </body>
 </html>
