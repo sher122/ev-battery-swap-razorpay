@@ -99,22 +99,11 @@ ev-swap-razorpay/
 |-- app.py
 |-- ev_swap.db              # Local database; not committed
 |-- .env                    # Private credentials; not committed
-|-- .env.example            # Example environment configuration
 |-- .gitignore
-|-- requirements.txt
-|
 |-- templates/
 |   |-- index.html
 |   |-- dashboard.html
-|   |-- battery_inventory.html
-|   |-- webhook_monitor.html # Existing template, if retained locally
-|
-|-- docs/
-|   |-- screenshots/
-|       |-- payment-dashboard.png
-|       |-- battery-inventory.png
-|       |-- payment-page.png
-|
+|   |-- battery_inventory.html|
 |-- README.md
 ```
 
